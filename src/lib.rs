@@ -276,4 +276,28 @@ mod tests {
             dbg!(body.await.unwrap());
         });
     }
+
+    #[test]
+    fn two_big_continues() {
+        let _ = env_logger::builder().is_test(true).try_init();
+
+        let mut continues_packet = Vec::new();
+        for _ in 0..2 {
+            continues_packet.extend_from_slice(b"HTTP/1.1 100 Continue\r\n");
+            for _ in 0..10 {
+                continues_packet.extend_from_slice(b"X-Filler: AAAAAAAAAAAA\r\n");
+            }
+            continues_packet.extend_from_slice(b"\r\n");
+        }
+        let connector =
+            CannedConnector::new(vec![continues_packet, CANNED_RESPONSE_PACKET_3.to_vec()]);
+        let client = Client::new(connector).with_default_pool();
+        block_on(async move {
+            let mut conn = make_request(&client).await.unwrap(); // Httparse(Version), "invalid HTTP version"
+            dbg!(conn.status());
+            let body = conn.response_body();
+            dbg!(&body);
+            dbg!(body.await.unwrap());
+        });
+    }
 }
