@@ -254,7 +254,7 @@ mod tests {
             dbg!(conn.status());
             let body = conn.response_body();
             dbg!(&body);
-            dbg!(body.await.unwrap()); // "invalid chunk size"
+            dbg!(body.await.unwrap());
         });
     }
 
@@ -269,7 +269,7 @@ mod tests {
         let connector = CannedConnector::new(vec![omnibus_packet]);
         let client = Client::new(connector).with_default_pool();
         block_on(async move {
-            let mut conn = make_request(&client).await.unwrap(); // Httparse(Version), "invalid HTTP version"
+            let mut conn = make_request(&client).await.unwrap();
             dbg!(conn.status());
             let body = conn.response_body();
             dbg!(&body);
@@ -293,7 +293,70 @@ mod tests {
             CannedConnector::new(vec![continues_packet, CANNED_RESPONSE_PACKET_3.to_vec()]);
         let client = Client::new(connector).with_default_pool();
         block_on(async move {
-            let mut conn = make_request(&client).await.unwrap(); // Httparse(Version), "invalid HTTP version"
+            let mut conn = make_request(&client).await.unwrap();
+            dbg!(conn.status());
+            let body = conn.response_body();
+            dbg!(&body);
+            dbg!(body.await.unwrap());
+        });
+    }
+
+    #[test]
+    fn two_small_continues() {
+        let _ = env_logger::builder().is_test(true).try_init();
+
+        let mut continues_packet = Vec::new();
+        for _ in 0..2 {
+            continues_packet.extend_from_slice(b"HTTP/1.1 100 Continue\r\n");
+            continues_packet.extend_from_slice(b"\r\n");
+        }
+        let connector =
+            CannedConnector::new(vec![continues_packet, CANNED_RESPONSE_PACKET_3.to_vec()]);
+        let client = Client::new(connector).with_default_pool();
+        block_on(async move {
+            let mut conn = make_request(&client).await.unwrap();
+            dbg!(conn.status());
+            let body = conn.response_body();
+            dbg!(&body);
+            dbg!(body.await.unwrap());
+        });
+    }
+
+    #[test]
+    fn little_continue_big_continue() {
+        let _ = env_logger::builder().is_test(true).try_init();
+
+        let mut continues_packet = Vec::new();
+        continues_packet.extend_from_slice(b"HTTP/1.1 100 Continue\r\n\r\n");
+        continues_packet.extend_from_slice(
+            b"HTTP/1.1 100 Continue\r\nX-Filler: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\r\n\r\n"
+        );
+        let connector =
+            CannedConnector::new(vec![continues_packet, CANNED_RESPONSE_PACKET_3.to_vec()]);
+        let client = Client::new(connector).with_default_pool();
+        block_on(async move {
+            let mut conn = make_request(&client).await.unwrap();
+            dbg!(conn.status());
+            let body = conn.response_body();
+            dbg!(&body);
+            dbg!(body.await.unwrap());
+        });
+    }
+
+    #[test]
+    fn big_continue_little_continue() {
+        let _ = env_logger::builder().is_test(true).try_init();
+
+        let mut continues_packet = Vec::new();
+        continues_packet.extend_from_slice(
+            b"HTTP/1.1 100 Continue\r\nX-Filler: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\r\n\r\n"
+        );
+        continues_packet.extend_from_slice(b"HTTP/1.1 100 Continue\r\n\r\n");
+        let connector =
+            CannedConnector::new(vec![continues_packet, CANNED_RESPONSE_PACKET_3.to_vec()]);
+        let client = Client::new(connector).with_default_pool();
+        block_on(async move {
+            let mut conn = make_request(&client).await.unwrap();
             dbg!(conn.status());
             let body = conn.response_body();
             dbg!(&body);
